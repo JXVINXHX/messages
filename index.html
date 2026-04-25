@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Un mensaje para ti</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --rose:    #e8c4c4;
+    --rose-d:  #c9918f;
+    --blush:   #f5e6e6;
+    --cream:   #fdf8f4;
+    --gold:    #c9a96e;
+    --gold-l:  #ecdbb8;
+    --sage:    #b4c4b0;
+    --deep:    #3d2b2b;
+    --mid:     #7a5c5c;
+    --light:   #c4a8a8;
+  }
+
+  html, body {
+    min-height: 100vh;
+    background: var(--cream);
+    font-family: 'Jost', sans-serif;
+    color: var(--deep);
+    overflow-x: hidden;
+  }
+
+  #canvas-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .corner {
+    position: fixed;
+    width: 140px;
+    opacity: 0.55;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .corner-tl { top: 0; left: 0; }
+  .corner-tr { top: 0; right: 0; transform: scaleX(-1); }
+  .corner-bl { bottom: 0; left: 0; transform: scaleY(-1); }
+  .corner-br { bottom: 0; right: 0; transform: scale(-1); }
+
+  #app {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem 3rem;
+    gap: 2rem;
+  }
+
+  .header {
+    text-align: center;
+    animation: fadeDown 1s ease both;
+  }
+
+  .header-ornament {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; margin-bottom: 0.5rem;
+  }
+  .line-orn { flex: 1; max-width: 80px; height: 1px; background: linear-gradient(to right, transparent, var(--gold)); }
+  .line-orn.r { background: linear-gradient(to left, transparent, var(--gold)); }
+
+  .diamond {
+    width: 8px; height: 8px;
+    background: var(--gold);
+    transform: rotate(45deg);
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  .header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    color: var(--deep);
+    line-height: 1.2;
+  }
+  .header h1 em {
+    font-style: italic;
+    color: var(--rose-d);
+  }
+  .header p {
+    margin-top: 0.5rem;
+    font-size: 0.82rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--light);
+    font-weight: 300;
+  }
+
+  .input-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    max-width: 440px;
+    animation: fadeUp 1s 0.3s ease both;
+  }
+
+  .input-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  .input-label {
+    position: absolute;
+    top: 50%; left: 1.2rem;
+    transform: translateY(-50%);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--light);
+    pointer-events: none;
+    transition: all 0.3s ease;
+  }
+
+  #nombreInput {
+    width: 100%;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--rose);
+    border-radius: 0;
+    padding: 1rem 1.2rem 0.6rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.3rem;
+    font-weight: 400;
+    color: var(--deep);
+    letter-spacing: 0.05em;
+    outline: none;
+    transition: border-color 0.3s, background 0.3s;
+    text-align: center;
+  }
+
+  #nombreInput:focus { border-color: var(--gold); background: rgba(255,255,255,0.9); }
+  #nombreInput:focus + .input-label,
+  #nombreInput:not(:placeholder-shown) + .input-label {
+    top: 0.45rem; font-size: 0.65rem; color: var(--gold);
+  }
+  #nombreInput::placeholder { color: transparent; }
+
+  .btn-generar {
+    position: relative;
+    background: var(--deep);
+    color: var(--gold-l);
+    border: none;
+    padding: 0.85rem 2.5rem;
+    font-family: 'Jost', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    cursor: pointer;
+    overflow: hidden;
+    transition: background 0.3s, transform 0.15s;
+  }
+  .btn-generar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--rose-d);
+    transform: translateX(-100%);
+    transition: transform 0.4s ease;
+  }
+  .btn-generar span { position: relative; z-index: 1; }
+  .btn-generar:hover::before { transform: translateX(0); }
+  .btn-generar:hover { color: white; }
+  .btn-generar:active { transform: scale(0.97); }
+
+  #resultado {
+    display: none;
+    width: 100%;
+    max-width: 520px;
+    animation: appearCard 0.8s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  @keyframes appearCard {
+    from { opacity: 0; transform: translateY(30px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .card {
+    position: relative;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid var(--rose);
+    padding: 3rem 2.5rem 2.5rem;
+    text-align: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .card::before, .card::after,
+  .card-inner::before, .card-inner::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: var(--gold);
+    border-style: solid;
+  }
+  .card::before  { top: 6px;    left: 6px;    border-width: 1px 0 0 1px; }
+  .card::after   { top: 6px;    right: 6px;   border-width: 1px 1px 0 0; }
+  .card-inner::before { bottom: 6px; left: 6px;    border-width: 0 0 1px 1px; }
+  .card-inner::after  { bottom: 6px; right: 6px;   border-width: 0 1px 1px 0; }
+
+  .flora-top {
+    display: flex; justify-content: center; gap: 6px;
+    margin-bottom: 1.5rem;
+  }
+  .petal {
+    width: 6px; height: 6px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: var(--rose-d);
+    opacity: 0.7;
+    animation: petalFloat 4s ease-in-out infinite;
+  }
+  .petal:nth-child(2) { animation-delay: 0.5s; background: var(--gold); width: 8px; height: 8px; }
+  .petal:nth-child(3) { animation-delay: 1s; }
+  .petal:nth-child(4) { animation-delay: 1.5s; background: var(--sage); }
+  .petal:nth-child(5) { animation-delay: 2s; }
+
+  @keyframes petalFloat {
+    0%, 100% { transform: rotate(-45deg) translateY(0); }
+    50%       { transform: rotate(-45deg) translateY(-4px); }
+  }
+
+  .avatar-wrap {
+    position: relative;
+    width: 72px; height: 72px;
+    margin: 0 auto 1rem;
+  }
+  .avatar-ring {
+    position: absolute; inset: -5px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    animation: spinSlow 12s linear infinite;
+  }
+  .avatar-ring::before {
+    content: '✦';
+    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: var(--gold);
+  }
+  @keyframes spinSlow { to { transform: rotate(360deg); } }
+  .avatar {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    transition: background 0.5s, color 0.5s;
+  }
+
+  .nombre-disp {
+    font-size: 0.68rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--light);
+    margin-bottom: 0.4rem;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.3rem 1rem;
+    border: 1px solid var(--rose);
+    color: var(--rose-d);
+    margin-bottom: 1.5rem;
+  }
+
+  .sep {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 1.4rem;
+  }
+  .sep-line { flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--gold-l), transparent); }
+  .sep-icon { font-size: 10px; color: var(--gold); }
+
+  #mensajeEl {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.15rem, 3vw, 1.4rem);
+    font-weight: 300;
+    line-height: 1.8;
+    color: var(--deep);
+    font-style: italic;
+    margin-bottom: 2rem;
+  }
+
+  .btn-otro {
+    background: none;
+    border: 1px solid var(--rose);
+    padding: 0.6rem 1.8rem;
+    font-family: 'Jost', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mid);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .btn-otro:hover { border-color: var(--gold); color: var(--gold); background: rgba(201,169,110,0.06); }
+
+  .versiculo-wrap {
+    margin: 1.6rem 0 1.4rem;
+    padding: 1.2rem 1.5rem;
+    background: linear-gradient(135deg, rgba(201,169,110,0.08), rgba(232,196,196,0.1));
+    border: 1px solid var(--gold-l);
+    position: relative;
+  }
+  .versiculo-wrap::before {
+    content: '\201C';
+    position: absolute;
+    top: -12px; left: 14px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 3rem;
+    color: var(--gold);
+    line-height: 1;
+    opacity: 0.5;
+  }
+  .versiculo-sep {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 0.8rem;
+  }
+  .vsep-line { flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--gold-l), transparent); }
+  .vsep-icon { font-size: 11px; color: var(--gold); opacity: 0.8; }
+  .versiculo-texto {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    font-style: italic;
+    font-weight: 300;
+    line-height: 1.65;
+    color: var(--mid);
+    margin-bottom: 0.5rem;
+  }
+  .versiculo-ref {
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 400;
+  }
+
+  .flora-bottom {
+    display: flex; justify-content: center;
+    gap: 8px; margin-top: 1.8rem; opacity: 0.5;
+  }
+  .dot-orn { width: 4px; height: 4px; border-radius: 50%; background: var(--gold); }
+  .dot-orn.big { width: 6px; height: 6px; background: var(--rose-d); }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { transform: rotate(45deg) scale(1); }
+    50%       { transform: rotate(45deg) scale(1.4); }
+  }
+
+  .particle {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+    animation: floatUp linear infinite;
+    opacity: 0;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 0.6; }
+    90%  { opacity: 0.3; }
+    100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+  }
+
+  #hint { font-size: 0.78rem; color: var(--rose-d); letter-spacing: 0.05em; min-height: 1rem; }
+
+  @media (max-width: 480px) {
+    .card { padding: 2.5rem 1.5rem 2rem; }
+    .corner { width: 90px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas-bg"></canvas>
+
+<svg class="corner corner-tl" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 10 L10 60 Q10 80 30 80" stroke="#c9a96e" stroke-width="0.8" fill="none"/>
+  <path d="M10 10 L60 10 Q80 10 80 30" stroke="#c9a96e" stroke-width="0.8" fill="none"/>
+  <circle cx="10" cy="10" r="3" fill="#c9a96e" opacity="0.6"/>
+  <path d="M25 10 Q35 5 35 18 Q35 30 25 25 Q15 20 25 10Z" fill="#e8c4c4" opacity="0.5"/>
+  <path d="M10 25 Q5 35 18 35 Q30 35 25 25 Q20 15 10 25Z" fill="#e8c4c4" opacity="0.4"/>
+  <circle cx="30" cy="30" r="2" fill="#c9a96e" opacity="0.4"/>
+  <path d="M50 10 Q55 5 55 15 Q55 24 50 20 Q44 15 50 10Z" fill="#b4c4b0" opacity="0.45"/>
+  <path d="M10 50 Q5 55 15 55 Q24 55 20 50 Q15 44 10 50Z" fill="#b4c4b0" opacity="0.4"/>
+  <path d="M70 10 L70 14 M74 10 L70 14 L66 10" stroke="#c9a96e" stroke-width="0.6" fill="none"/>
+  <path d="M10 70 L14 70 M10 74 L14 70 L10 66" stroke="#c9a96e" stroke-width="0.6" fill="none"/>
+</svg>
+
+<svg class="corner corner-tr" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 10 L10 60 Q10 80 30 80" stroke="#c9a96e" stroke-width="0.8" fill="none"/>
+  <path d="M10 10 L60 10 Q80 10 80 30" stroke="#c9a96e" stroke-width="0.8" fill="none"/>
+  <circle cx="10" cy="10" r="3" fill="#c9a96e" opacity="0.6"/>
+  <path d="M25 10 Q35 5 35 18 Q35 30 25 25 Q15 20 25 10Z" fill="#e8c4c4" opacity="0.5"/>
+  <path d="M10 25 Q5 35 18 35 Q30 35 25 25 Q20 15 10 25Z" fill="#e8c4c4" opacity="0.4"/>
+  <circle cx="30" cy="30" r="2" fill="#c9a96e" opacity="0.4"/>
+  <path d="M50 10 Q55 5 55 15 Q55 24 50 20 Q44 15 50 10Z" fill="#b4c4b0" opacity="0.45"/>
+  <path d="M10 50 Q5 55 15 55 Q24 55 20 50 Q15 44 10 50Z" fill="#b4c4b0" opacity="0.4"/>
+</svg>
+
+<svg class="corner corner-bl" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 10 L10 60 Q10 80 30 80" stroke="#c9a96e" stroke-width="0.8" fill="none"/>
+  <path d="M10 10 L60 10 Q80 10 80 30" stroke="#c9a96e" stroke-width="0.8" fill="none"/>
+  <circle cx="10" cy="10" r="3" fill="#c9a96e" opacity="0.6"/>
+  <path d="M25 10 Q35 5 35 18 Q35 30 25 25 Q15 20 25 10Z" fill="#e8c4c4" opacity="0.5"/>
+  <path d="M10 25 Q5 35 18 35 Q30 35 25 25 Q20 15 10 25Z" fill="#e8c4c4" opacity="0.4"/>
+</svg>
+
+<svg class="corner corner-br" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 10 L10 60 Q10 80 30 80" stroke="#c9a96e" stroke-width="0.8" fill="none"/>
+  <path d="M10 10 L60 10 Q80 10 80 30" stroke="#c9a96e" stroke-width="0.8" fill="none"/>
+  <circle cx="10" cy="10" r="3" fill="#c9a96e" opacity="0.6"/>
+  <path d="M25 10 Q35 5 35 18 Q35 30 25 25 Q15 20 25 10Z" fill="#e8c4c4" opacity="0.5"/>
+  <path d="M10 25 Q5 35 18 35 Q30 35 25 25 Q20 15 10 25Z" fill="#e8c4c4" opacity="0.4"/>
+</svg>
+
+<div id="app">
+
+  <div class="header">
+    <div class="header-ornament">
+      <div class="line-orn"></div>
+      <div class="diamond"></div>
+      <div class="line-orn r"></div>
+    </div>
+    <h1>Un mensaje <em>para ti</em></h1>
+    <p>Escribe tu nombre · recibe algo especial</p>
+  </div>
+
+  <div class="input-area">
+    <div class="input-wrap">
+      <input type="text" id="nombreInput" placeholder=" " maxlength="30" autocomplete="off" />
+      <label class="input-label">Tu nombre</label>
+    </div>
+    <button class="btn-generar" onclick="generar()">
+      <span>Recibir mi mensaje</span>
+    </button>
+    <p id="hint"></p>
+  </div>
+
+  <div id="resultado">
+    <div class="card card-inner">
+      <div class="flora-top">
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+        <div class="petal"></div>
+      </div>
+
+      <div class="avatar-wrap">
+        <div class="avatar-ring"></div>
+        <div class="avatar" id="avatarEl"></div>
+      </div>
+
+      <p class="nombre-disp" id="nombreDisplay"></p>
+
+      <div class="sep">
+        <div class="sep-line"></div>
+        <span class="sep-icon">✦</span>
+        <div class="sep-line"></div>
+      </div>
+
+      <p id="mensajeEl"></p>
+
+      <div class="versiculo-wrap" id="versiculoWrap">
+        <div class="versiculo-sep">
+          <div class="vsep-line"></div>
+          <span class="vsep-icon">✝</span>
+          <div class="vsep-line"></div>
+        </div>
+        <p class="versiculo-texto" id="versiculoTexto"></p>
+        <p class="versiculo-ref" id="versiculoRef"></p>
+      </div>
+
+      <div class="flora-bottom">
+        <div class="dot-orn"></div>
+        <div class="dot-orn big"></div>
+        <div class="dot-orn"></div>
+        <div class="dot-orn big"></div>
+        <div class="dot-orn"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── CANVAS FONDO ── */
+(function() {
+  const canvas = document.getElementById('canvas-bg');
+  const ctx = canvas.getContext('2d');
+  const petals = [];
+  const colors = ['#e8c4c4','#c9a96e','#b4c4b0','#f5e6e6','#ecdbb8'];
+
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < 28; i++) {
+    petals.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: Math.random() * 5 + 2,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: -Math.random() * 0.5 - 0.15,
+      rot: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 0.01,
+      alpha: Math.random() * 0.25 + 0.08,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    petals.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, p.r, p.r * 1.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      if (p.y < -20) { p.y = canvas.height + 20; p.x = Math.random() * canvas.width; }
+      if (p.x < -20) p.x = canvas.width + 20;
+      if (p.x > canvas.width + 20) p.x = -20;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ── MENSAJES ── */
+const mensajes = [
+  // --- BLOQUE ORIGINAL ---
+  { texto: (n) => `${n}, no estás solo en esto. Dios prometió caminar contigo en cada paso, sostenerte cuando sientas que ya no puedes más.`, bg: "#fdf0f0", fg: "#712B13", versiculo: "«Sé fuerte y valiente. No temas ni te desanimes, porque el Señor tu Dios estará contigo dondequiera que vayas.»", ref: "Josué 1:9" },
+  { texto: (n) => `${n}, hay planes hermosos escritos para tu vida, llenos de esperanza y futuro. Confía aunque aún no puedas verlos.`, bg: "#f0eefe", fg: "#3C3489", versiculo: "«Porque yo sé los planes que tengo para vosotros, planes de bienestar y no de calamidad, para daros un futuro y una esperanza.»", ref: "Jeremías 29:11" },
+  { texto: (n) => `Cuando sientas que las fuerzas se acaban, ${n}, recuerda que puedes pedirle más al que nunca se cansa. Él te renueva.`, bg: "#fdf4ea", fg: "#633806", versiculo: "«Todo lo puedo en Cristo que me fortalece.»", ref: "Filipenses 4:13" },
+  { texto: (n) => `${n}, suelta la carga que no te corresponde llevar. Él ya la tiene en sus manos, y sus manos son más fuertes que cualquier tormenta.`, bg: "#eaf3f0", fg: "#085041", versiculo: "«Venid a mí todos los que estéis cansados y cargados, y yo os haré descansar.»", ref: "Mateo 11:28" },
+  { texto: (n) => `Eres profundamente amado por Dios, ${n}, no por lo que haces sino por lo que eres. Ese amor no cambia, no falla, no tiene condiciones.`, bg: "#fdf0f5", fg: "#72243E", versiculo: "«Con amor eterno te he amado; por eso te he atraído con misericordia.»", ref: "Jeremías 31:3" },
+  { texto: (n) => `${n}, lo que sientes hoy no es el final de tu historia. Dios convierte las cenizas en algo hermoso. Espera con fe.`, bg: "#eaf3f0", fg: "#0F6E56", versiculo: "«Él da esfuerzo al cansado, y multiplica las fuerzas al que no tiene ningunas.»", ref: "Isaías 40:29" },
+  { texto: (n) => `No temas lo que viene, ${n}. Hay una paz que no depende de las circunstancias, y esa paz puede ser tuya hoy mismo.`, bg: "#f0eefe", fg: "#534AB7", versiculo: "«La paz os dejo, mi paz os doy; no os la doy como el mundo la da. No se turbe vuestro corazón, ni tenga miedo.»", ref: "Juan 14:27" },
+  { texto: (n) => `${n}, fuiste creado con intención y con amor. No eres un accidente. Eres una obra pensada, diseñada y querida desde siempre.`, bg: "#fdf0f5", fg: "#72243E", versiculo: "«Te alabo porque soy una creación admirable. ¡Tus obras son maravillosas, y esto lo sé muy bien!»", ref: "Salmo 139:14" },
+  { texto: (n) => `Cuando caigas, ${n}, no te quedes en el suelo. Él te levanta. Siempre. Una y otra vez, sin cansarse jamás de ti.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Porque siete veces podrá caer el justo, pero otras tantas se levantará.»", ref: "Proverbios 24:16" },
+  { texto: (n) => `${n}, eres luz en este mundo. No apagues lo que Dios encendió en ti por miedo a lo que otros puedan pensar.`, bg: "#fdf4ea", fg: "#854F0B", versiculo: "«Así alumbre vuestra luz delante de los hombres, para que vean vuestras buenas obras.»", ref: "Mateo 5:16" },
+  { texto: (n) => `${n}, el cansancio que sientes es real, pero también lo es la promesa: los que esperan en Él recibirán nuevas fuerzas.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«Los que esperan en el Señor renovarán sus fuerzas; se remontarán con alas como las águilas.»", ref: "Isaías 40:31" },
+  { texto: (n) => `No hay oscuridad tan densa que pueda apagar la luz de Dios sobre tu vida, ${n}. Él te guía aunque no veas el camino completo.`, bg: "#f0eefe", fg: "#3C3489", versiculo: "«Tu palabra es una lámpara a mis pies y una luz en mi sendero.»", ref: "Salmo 119:105" },
+  { texto: (n) => `${n}, confía. Aunque hoy no entiendas lo que está pasando, Él tiene todo en sus manos y su corazón está a tu favor.`, bg: "#eaf3f0", fg: "#085041", versiculo: "«Confía en el Señor con todo tu corazón, y no te apoyes en tu propia prudencia.»", ref: "Proverbios 3:5" },
+  { texto: (n) => `${n}, has sido llamado por tu nombre. No eres uno más. Eres conocido, amado y sostenido por manos que nunca sueltan.`, bg: "#fdf4ea", fg: "#633806", versiculo: "«No temas, porque yo te he redimido; te he llamado por tu nombre, tú eres mío.»", ref: "Isaías 43:1" },
+  { texto: (n) => `${n}, lo que haces con amor nunca se pierde. Dios ve cada gesto tuyo, cada esfuerzo silencioso, y los guarda con ternura.`, bg: "#fdf0f5", fg: "#993556", versiculo: "«El amor es sufrido, es benigno; el amor no tiene envidia, no es jactancioso, no se envanece.»", ref: "1 Corintios 13:4" },
+  { texto: (n) => `${n}, incluso en los momentos más oscuros Dios está obrando a tu favor. Lo que hoy parece una derrota, mañana será tu testimonio.`, bg: "#fdf0f0", fg: "#712B13", versiculo: "«Y sabemos que a los que aman a Dios, todas las cosas les ayudan a bien.»", ref: "Romanos 8:28" },
+  { texto: (n) => `No te compares con nadie, ${n}. Dios te diseñó único, con un propósito que nadie más puede cumplir en este mundo.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Porque somos hechura suya, creados en Cristo Jesús para buenas obras, las cuales Dios preparó de antemano.»", ref: "Efesios 2:10" },
+  { texto: (n) => `${n}, la preocupación no puede cambiar el mañana, pero la oración sí puede transformar tu hoy. Entrega tus angustias a Él.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«No se inquieten por nada; más bien, en toda ocasión, con oración y ruego, presenten sus peticiones a Dios.»", ref: "Filipenses 4:6" },
+  { texto: (n) => `${n}, Dios no te pide que lo tengas todo resuelto. Solo te pide que confíes en Él un día a la vez. Eso es suficiente.`, bg: "#fdf4ea", fg: "#854F0B", versiculo: "«Echa sobre el Señor tu carga, y él te sustentará; no dejará para siempre caído al justo.»", ref: "Salmo 55:22" },
+  { texto: (n) => `Hoy puede ser difícil, ${n}, pero recuerda: el gozo llega por la mañana. Esta noche no dura para siempre.`, bg: "#f0eefe", fg: "#534AB7", versiculo: "«Por la noche durará el lloro, y a la mañana vendrá la alegría.»", ref: "Salmo 30:5" },
+  { texto: (n) => `${n}, no subestimes lo que Dios puede hacer contigo. Él usa a los que el mundo considera pequeños para hacer cosas grandes.`, bg: "#eaf3f0", fg: "#0F6E56", versiculo: "«Lo débil del mundo escogió Dios para avergonzar a lo fuerte.»", ref: "1 Corintios 1:27" },
+  { texto: (n) => `${n}, si hoy sientes que el camino es demasiado largo, recuerda que no lo caminas solo. Hay una presencia que nunca te abandona.`, bg: "#fdf0f5", fg: "#72243E", versiculo: "«Aunque ande en valle de sombra de muerte, no temeré mal alguno, porque tú estarás conmigo.»", ref: "Salmo 23:4" },
+  { texto: (n) => `La fe que tienes, ${n}, aunque parezca pequeña, es capaz de mover montañas. No la subestimes, cultívala cada día.`, bg: "#fdf4ea", fg: "#633806", versiculo: "«Si tuvierais fe como un grano de mostaza, diríais a este monte: Pásate de aquí allá, y se pasaría.»", ref: "Mateo 17:20" },
+  { texto: (n) => `${n}, Dios te ve. No eres invisible para Él. Cada lágrima tuya tiene un nombre, y Él las guarda todas.`, bg: "#fdf0f0", fg: "#993556", versiculo: "«Tú has llevado cuenta de mis lamentos; pon mis lágrimas en tu redoma. ¿No están en tu libro?»", ref: "Salmo 56:8" },
+  { texto: (n) => `${n}, el pasado no define quién eres. En Cristo hay una vida nueva, un comienzo fresco, una historia que puede reescribirse.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«De modo que si alguno está en Cristo, nueva criatura es; las cosas viejas pasaron; he aquí todas son hechas nuevas.»", ref: "2 Corintios 5:17" },
+  { texto: (n) => `${n}, el Señor pelea por ti. No tienes que cargar esta batalla solo. Descansa y déjalo actuar.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«El Señor peleará por vosotros, y vosotros estaréis tranquilos.»", ref: "Éxodo 14:14" },
+  { texto: (n) => `Dios conoce cada detalle de tu vida, ${n}, y aun así te ama. No hay nada en ti que pueda alejarte de ese amor.`, bg: "#eaf3f0", fg: "#085041", versiculo: "«Ni lo alto, ni lo profundo, ni ninguna otra cosa creada nos podrá separar del amor de Dios.»", ref: "Romanos 8:39" },
+  { texto: (n) => `${n}, cuando el mundo diga que no puedes, recuerda que para Dios nada es imposible. Él es más grande que cualquier obstáculo.`, bg: "#f0eefe", fg: "#534AB7", versiculo: "«¿Hay para Dios alguna cosa difícil?»", ref: "Génesis 18:14" },
+  { texto: (n) => `No permitas que el miedo escriba tu historia, ${n}. Dios te dio espíritu de poder, de amor y de dominio propio.`, bg: "#fdf4ea", fg: "#854F0B", versiculo: "«Porque no nos ha dado Dios espíritu de cobardía, sino de poder, de amor y de dominio propio.»", ref: "2 Timoteo 1:7" },
+  { texto: (n) => `${n}, Dios te cuida incluso cuando duermes. Su amor no descansa, no se distrae, no te pierde de vista jamás.`, bg: "#fdf0f0", fg: "#712B13", versiculo: "«He aquí, no se adormecerá ni dormirá el que guarda a Israel.»", ref: "Salmo 121:4" },
+  { texto: (n) => `Eres valioso a los ojos de Dios, ${n}. Tanto que envió a su Hijo por ti. Eso dice todo sobre cuánto te ama.`, bg: "#f0eefe", fg: "#3C3489", versiculo: "«Porque de tal manera amó Dios al mundo, que ha dado a su Hijo unigénito, para que todo aquel que en él cree no se pierda.»", ref: "Juan 3:16" },
+  { texto: (n) => `${n}, cuando no sepas qué decir, ora. Cuando no sepas qué hacer, ora. Hay poder en la oración que va más allá de la razón.`, bg: "#fdf4ea", fg: "#633806", versiculo: "«La oración eficaz del justo puede mucho.»", ref: "Santiago 5:16" },
+  { texto: (n) => `No te desanimes por lo que ves, ${n}. Lo que Dios está haciendo en lo invisible es más grande de lo que imaginas.`, bg: "#eaf3f0", fg: "#085041", versiculo: "«Porque por fe andamos, no por vista.»", ref: "2 Corintios 5:7" },
+  { texto: (n) => `${n}, la bondad de Dios te persigue cada día de tu vida. No es casualidad que estés aquí, leyendo esto hoy.`, bg: "#fdf0f5", fg: "#72243E", versiculo: "«Ciertamente el bien y la misericordia me seguirán todos los días de mi vida.»", ref: "Salmo 23:6" },
+  { texto: (n) => `Dios sana los corazones rotos, ${n}. Si el tuyo está herido hoy, ponlo en sus manos. Él sabe exactamente cómo restaurarlo.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Él sana a los quebrantados de corazón, y venda sus heridas.»", ref: "Salmo 147:3" },
+  { texto: (n) => `${n}, busca a Dios con todo tu corazón y lo encontrarás. Él no se esconde de quien lo busca de verdad.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«Me buscaréis y me hallaréis, porque me buscaréis de todo vuestro corazón.»", ref: "Jeremías 29:13" },
+  { texto: (n) => `${n}, incluso tu nombre es conocido por Dios. Antes de que nacieras, Él ya te conocía y tenía algo especial reservado para ti.`, bg: "#fdf4ea", fg: "#854F0B", versiculo: "«Antes que te formase en el vientre te conocí, y antes que nacieses te santifiqué.»", ref: "Jeremías 1:5" },
+  { texto: (n) => `No te rindas, ${n}. El fruto del esfuerzo llega a su tiempo. Dios prometió que si no te cansas de hacer el bien, cosecharás.`, bg: "#eaf3f0", fg: "#0F6E56", versiculo: "«No nos cansemos de hacer el bien, pues a su tiempo, si no desmayamos, segaremos.»", ref: "Gálatas 6:9" },
+  { texto: (n) => `${n}, Dios es tu refugio en medio de la tormenta. Corre a Él, no te alejes. Es el lugar más seguro que existe.`, bg: "#f0eefe", fg: "#534AB7", versiculo: "«Dios es nuestro amparo y fortaleza, nuestro pronto auxilio en las tribulaciones.»", ref: "Salmo 46:1" },
+  { texto: (n) => `${n}, aunque sientas que vas despacio, recuerda que Dios no mide el tiempo como nosotros. Cada paso tuyo cuenta.`, bg: "#fdf0f5", fg: "#993556", versiculo: "«Mas, oh amados, no ignoréis esto: que para el Señor un día es como mil años, y mil años como un día.»", ref: "2 Pedro 3:8" },
+  { texto: (n) => `Hay una esperanza viva en ti, ${n}, que ninguna circunstancia puede matar. Aférrate a ella con todo lo que tienes.`, bg: "#fdf0f0", fg: "#712B13", versiculo: "«Bendito el Dios y Padre de nuestro Señor Jesucristo, que según su grande misericordia nos hizo renacer para una esperanza viva.»", ref: "1 Pedro 1:3" },
+  { texto: (n) => `${n}, el Señor está cerca de los que tienen el corazón quebrantado. Si hoy lloras, Él está justo ahí contigo.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Cercano está el Señor a los quebrantados de corazón; y salva a los contritos de espíritu.»", ref: "Salmo 34:18" },
+  { texto: (n) => `${n}, la vida que tienes por delante es más grande que los errores que dejaste atrás. Dios no te define por tus caídas.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«Olvidando ciertamente lo que queda atrás, y extendiéndome a lo que está delante.»", ref: "Filipenses 3:13" },
+  { texto: (n) => `No estés ansioso, ${n}. Hay un Padre celestial que conoce todo lo que necesitas. Él provee, siempre ha proveído.`, bg: "#fdf4ea", fg: "#854F0B", versiculo: "«Así que no os afanéis por el día de mañana... Basta a cada día su propio mal.»", ref: "Mateo 6:34" },
+  { texto: (n) => `${n}, cuando Dios cierra una puerta, no es para abandonarte. Es porque hay algo mejor esperando en el próximo camino.`, bg: "#eaf3f0", fg: "#085041", versiculo: "«Porque yo sé los planes que tengo para vosotros, dice el Señor, planes de bienestar y no de calamidad.»", ref: "Jeremías 29:11" },
+  { texto: (n) => `${n}, eres templo de Dios. En ti habita algo sagrado. Cuídate, valórate, trátate con la dignidad que Él te dio.`, bg: "#f0eefe", fg: "#3C3489", versiculo: "«¿No sabéis que sois templo de Dios, y que el Espíritu de Dios mora en vosotros?»", ref: "1 Corintios 3:16" },
+  { texto: (n) => `${n}, la gratitud abre puertas que el miedo cierra. Hoy, busca algo por lo que dar gracias. Hay más de lo que crees.`, bg: "#fdf0f5", fg: "#72243E", versiculo: "«Dad gracias en todo, porque esta es la voluntad de Dios para con vosotros.»", ref: "1 Tesalonicenses 5:18" },
+  { texto: (n) => `No importa cuántas veces hayas fallado, ${n}. Las misericordias de Dios son nuevas cada mañana. Hoy empieza de nuevo.`, bg: "#fdf0f0", fg: "#993556", versiculo: "«Las misericordias del Señor jamás terminan, pues nunca fallan sus bondades; son nuevas cada mañana.»", ref: "Lamentaciones 3:22-23" },
+  { texto: (n) => `${n}, pide con fe y sin dudar. Dios escucha cada palabra que sale de un corazón sincero. Ninguna oración se pierde.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Pedid, y se os dará; buscad, y hallaréis; llamad, y se os abrirá.»", ref: "Mateo 7:7" },
+  { texto: (n) => `${n}, el amor de Dios no tiene medida. No hay versión de ti que Él no pueda amar. Acércate tal como eres.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«Pero Dios muestra su amor para con nosotros, en que siendo aún pecadores, Cristo murió por nosotros.»", ref: "Romanos 5:8" },
+  { texto: (n) => `Deja que la paz de Dios guarde tu mente hoy, ${n}. Es una paz que supera todo entendimiento humano. Está disponible para ti.`, bg: "#fdf4ea", fg: "#633806", versiculo: "«Y la paz de Dios, que sobrepasa todo entendimiento, guardará vuestros corazones y vuestros pensamientos en Cristo Jesús.»", ref: "Filipenses 4:7" },
+  { texto: (n) => `${n}, no hay problema demasiado grande para Dios ni petición demasiado pequeña. Él quiere escucharte. Háblale hoy.`, bg: "#eaf3f0", fg: "#0F6E56", versiculo: "«Clama a mí, y yo te responderé, y te enseñaré cosas grandes y ocultas que tú no conoces.»", ref: "Jeremías 33:3" },
+  { texto: (n) => `${n}, la sabiduría que necesitas para tomar decisiones no la tienes que inventar. Pídela a Dios, Él la da generosamente.`, bg: "#fdf0f5", fg: "#72243E", versiculo: "«Y si alguno de vosotros tiene falta de sabiduría, pídala a Dios, el cual da a todos abundantemente.»", ref: "Santiago 1:5" },
+  { texto: (n) => `${n}, Dios no te abandonó en el pasado y no va a empezar a hacerlo ahora. Su fidelidad no tiene fecha de vencimiento.`, bg: "#fdf0f0", fg: "#712B13", versiculo: "«Jehová tu Dios está en medio de ti, poderoso, él salvará; se gozará sobre ti con alegría.»", ref: "Sofonías 3:17" },
+  { texto: (n) => `No dejes que el dolor de hoy te robe la esperanza de mañana, ${n}. Dios trabaja incluso en los tiempos de silencio.`, bg: "#f0eefe", fg: "#534AB7", versiculo: "«Aguarda al Señor; esfuérzate, y aliéntese tu corazón; sí, espera al Señor.»", ref: "Salmo 27:14" },
+  { texto: (n) => `${n}, eres más que vencedor. No solo sobrevives las pruebas, sino que Dios te da poder para salir de ellas más fuerte.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Antes, en todas estas cosas somos más que vencedores por medio de aquel que nos amó.»", ref: "Romanos 8:37" },
+  { texto: (n) => `${n}, la misión que Dios puso en tu corazón no es un sueño imposible. Con Él, cada paso hacia adelante tiene sentido eterno.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«Encomienda al Señor tus obras, y tus pensamientos serán afirmados.»", ref: "Proverbios 16:3" },
+  { texto: (n) => `${n}, Dios es el mismo ayer, hoy y siempre. Si fue fiel antes, lo será ahora. No hay razón para dudar de Él.`, bg: "#fdf4ea", fg: "#854F0B", versiculo: "«Jesucristo es el mismo ayer, y hoy, y por los siglos.»", ref: "Hebreos 13:8" },
+  { texto: (n) => `Cuando todo parezca imposible, ${n}, recuerda que la especialidad de Dios es hacer posible lo imposible. Confía en Él.`, bg: "#eaf3f0", fg: "#085041", versiculo: "«Lo que es imposible para los hombres, es posible para Dios.»", ref: "Lucas 18:27" },
+  { texto: (n) => `${n}, eres guardado por el poder de Dios. No estás a la deriva. Hay una mano firme que sostiene tu vida.`, bg: "#fdf0f5", fg: "#993556", versiculo: "«Que sois guardados por el poder de Dios mediante la fe, para alcanzar la salvación.»", ref: "1 Pedro 1:5" },
+  { texto: (n) => `${n}, Dios prometió darte descanso. No tienes que pelear todas las batallas solo. Hay gracia disponible para ti ahora mismo.`, bg: "#f0eefe", fg: "#3C3489", versiculo: "«Venid a mí todos los que estéis trabajados y cargados, y yo os haré descansar.»", ref: "Mateo 11:28" },
+  { texto: (n) => `No temas al futuro, ${n}. El mismo Dios que estuvo contigo en el pasado ya está esperándote en lo que viene.`, bg: "#fdf0f0", fg: "#712B13", versiculo: "«Jehová irá delante de ti; él estará contigo, no te dejará, ni te desamparará; no temas ni te intimides.»", ref: "Deuteronomio 31:8" },
+  { texto: (n) => `${n}, a veces Dios nos lleva por caminos que no entendemos. Pero siempre nos lleva. Nunca nos suelta.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Porque yo soy el Señor, tu Dios, que sostiene tu mano derecha; yo soy quien te dice: No temas, yo te ayudaré.»", ref: "Isaías 41:13" },
+  { texto: (n) => `${n}, el gozo del Señor es tu fortaleza. Aunque las circunstancias sean difíciles, hay una alegría más profunda esperándote.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«El gozo del Señor es vuestra fortaleza.»", ref: "Nehemías 8:10" },
+  { texto: (n) => `${n}, Dios ve lo que nadie más ve. Conoce tu esfuerzo, tu lucha, tu corazón. Nada pasa desapercibido ante sus ojos.`, bg: "#fdf4ea", fg: "#633806", versiculo: "«Porque los ojos del Señor contemplan toda la tierra, para mostrar su poder a favor de los que tienen corazón perfecto para con él.»", ref: "2 Crónicas 16:9" },
+  { texto: (n) => `${n}, incluso cuando caminas en la oscuridad, Dios ya vio el amanecer que te espera. Sigue caminando.`, bg: "#eaf3f0", fg: "#0F6E56", versiculo: "«La senda de los justos es como la luz de la aurora, que va en aumento hasta que el día es perfecto.»", ref: "Proverbios 4:18" },
+  { texto: (n) => `${n}, no subestimes el valor de un corazón humilde. Dios resiste al orgulloso pero da gracia al humilde. Eso es un regalo enorme.`, bg: "#fdf0f5", fg: "#72243E", versiculo: "«Dios resiste a los soberbios, y da gracia a los humildes.»", ref: "Santiago 4:6" },
+  { texto: (n) => `Tu vida tiene peso eterno, ${n}. Cada acto de bondad, cada palabra de aliento que das, resuena más allá de lo que puedes imaginar.`, bg: "#fdf0f0", fg: "#993556", versiculo: "«Todo lo que hagáis, hacedlo de corazón, como para el Señor y no para los hombres.»", ref: "Colosenses 3:23" },
+  { texto: (n) => `${n}, el Señor se deleita en ti. No eres una carga para Él. Eres alguien a quien Él celebra con gozo.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Se alegrará por ti con gozo, callará de amor, se regocijará sobre ti con cánticos.»", ref: "Sofonías 3:17" },
+  { texto: (n) => `${n}, cuando ores hoy, hazlo con confianza. No te acercas a un juez severo, sino a un Padre que te espera con los brazos abiertos.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«Acerquémonos, pues, confiadamente al trono de la gracia, para alcanzar misericordia y hallar gracia para el oportuno socorro.»", ref: "Hebreos 4:16" },
+  { texto: (n) => `${n}, la prueba que estás viviendo no es una señal de que Dios te olvidó. Es una oportunidad para que su gloria brille en ti.`, bg: "#fdf4ea", fg: "#854F0B", versiculo: "«Tened por sumo gozo cuando os halléis en diversas pruebas, sabiendo que la prueba de vuestra fe produce paciencia.»", ref: "Santiago 1:2-3" },
+  { texto: (n) => `${n}, no tienes que ganarte el amor de Dios. Ya lo tienes. Ya lo tuviste siempre. Solo recíbelo.`, bg: "#eaf3f0", fg: "#085041", versiculo: "«En esto consiste el amor: no en que nosotros hayamos amado a Dios, sino en que él nos amó a nosotros.»", ref: "1 Juan 4:10" },
+  { texto: (n) => `Hay una canción en el cielo con tu nombre, ${n}. Dios se regocija sobre ti. Eso es más real de lo que cualquier dificultad puede hacerte sentir.`, bg: "#f0eefe", fg: "#534AB7", versiculo: "«El Señor tu Dios está en medio de ti, poderoso para salvar. Se deleitará en ti con alegría.»", ref: "Sofonías 3:17" },
+  { texto: (n) => `${n}, Dios no te mide por tus logros. Te mira y ve a alguien por quien vale la pena dar todo. Eso nunca cambia.`, bg: "#fdf0f0", fg: "#712B13", versiculo: "«Mas el hombre mira lo que está delante de sus ojos, pero el Señor mira el corazón.»", ref: "1 Samuel 16:7" },
+  { texto: (n) => `${n}, este momento difícil tiene fecha de vencimiento. Nada en esta tierra es eterno, excepto el amor de Dios por ti.`, bg: "#fdf0f5", fg: "#72243E", versiculo: "«Porque un momento será su ira, pero su favor dura toda la vida.»", ref: "Salmo 30:5" },
+  { texto: (n) => `${n}, Dios te invita a descansar en Él. No a rendirte, sino a dejar de pelear solo lo que Él puede ganar por ti.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Estad quietos, y conoced que yo soy Dios.»", ref: "Salmo 46:10" },
+  { texto: (n) => `${n}, la misericordia de Dios es más grande que cualquier error tuyo. No te condenes. Él ya pagó por todo.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«Ahora, pues, ninguna condenación hay para los que están en Cristo Jesús.»", ref: "Romanos 8:1" },
+  { texto: (n) => `Cada mañana que despiertas, ${n}, es una nueva oportunidad que Dios te regala. Úsala con gratitud y esperanza.`, bg: "#fdf4ea", fg: "#633806", versiculo: "«Este es el día que hizo el Señor; nos gozaremos y alegraremos en él.»", ref: "Salmo 118:24" },
+  { texto: (n) => `${n}, si hoy te sientes perdido, recuerda que Dios es el mejor guía que existe. Pídele dirección y Él te mostrará el camino.`, bg: "#eaf3f0", fg: "#0F6E56", versiculo: "«Te haré entender, y te enseñaré el camino en que debes andar; sobre ti fijaré mis ojos.»", ref: "Salmo 32:8" },
+  { texto: (n) => `${n}, la fuerza que necesitas para hoy ya está disponible. Solo tienes que pedirla. Dios nunca ha fallado y no va a empezar hoy.`, bg: "#fdf0f5", fg: "#993556", versiculo: "«Porque el Señor, el Señor, es mi fortaleza; él hace mis pies como de ciervas, y en mis alturas me hace andar.»", ref: "Habacuc 3:19" },
+  { texto: (n) => `${n}, aunque hoy no lo veas, Dios está tejiendo algo hermoso con los hilos de tu historia. Confía en el tejedor.`, bg: "#f0eefe", fg: "#3C3489", versiculo: "«Porque somos hechura suya, creados en Cristo Jesús para buenas obras.»", ref: "Efesios 2:10" },
+  { texto: (n) => `${n}, el amor de Dios no depende de tu rendimiento. No tienes que hacer méritos. Solo tienes que recibirlo.`, bg: "#fdf0f0", fg: "#712B13", versiculo: "«Porque por gracia sois salvos por medio de la fe; y esto no de vosotros, pues es don de Dios.»", ref: "Efesios 2:8" },
+  { texto: (n) => `${n}, donde termina tu fuerza, ahí comienza la de Dios. Tu debilidad no es un obstáculo para Él, es el lugar donde brilla.`, bg: "#edf5e8", fg: "#27500A", versiculo: "«Mi gracia es suficiente para ti, porque mi poder se perfecciona en la debilidad.»", ref: "2 Corintios 12:9" },
+  { texto: (n) => `No te apresures, ${n}. El tiempo de Dios es perfecto. Lo que esperas llegará en el momento exacto, ni tarde ni temprano.`, bg: "#e8f1fc", fg: "#0C447C", versiculo: "«Todo tiene su momento oportuno; hay un tiempo para todo lo que se hace bajo el sol.»", ref: "Eclesiastés 3:1" },
+  { texto: (n) => `${n}, eres amado con un amor que no tiene principio ni fin. Antes de que existieras, ya eras conocido y amado por Dios.`, bg: "#fdf4ea", fg: "#854F0B", versiculo: "«Antes de formarte en el vientre, ya te había elegido; antes de que nacieras, ya te había apartado.»", ref: "Jeremías 1:5" },
+
+  // --- BLOQUE NUEVO: +120 mensajes ---
+  { texto: (n) => `${n}, no olvides que incluso los héroes de la fe tuvieron momentos de duda. Tu humanidad no te descalifica; te hace real ante Dios.`, bg: "#fdf0f0", fg: "#7A2020", versiculo: "«Elías era hombre sujeto a pasiones semejantes a las nuestras, y oró fervientemente... y el cielo dio lluvia.»", ref: "Santiago 5:17" },
+  { texto: (n) => `${n}, la soledad que sientes no es señal de que Dios se alejó. A veces el silencio es el lugar donde más nos habla.`, bg: "#eaf3f0", fg: "#095E4D", versiculo: "«Estad quietos, y conoced que yo soy Dios.»", ref: "Salmo 46:10" },
+  { texto: (n) => `Cada vez que perdonas, ${n}, liberas algo que Dios tenía guardado para ti. El perdón es una puerta disfrazada de sacrificio.`, bg: "#f0eefe", fg: "#3D2A8A", versiculo: "«Sed más bien bondadosos unos con otros, misericordiosos, perdonándoos unos a otros, como Dios también os perdonó en Cristo.»", ref: "Efesios 4:32" },
+  { texto: (n) => `${n}, el cielo está más cerca de ti de lo que imaginas. No es un lugar lejano; es una realidad que ya comenzó en tu corazón.`, bg: "#fdf4ea", fg: "#7A4A0A", versiculo: "«El reino de Dios está entre vosotros.»", ref: "Lucas 17:21" },
+  { texto: (n) => `Cuando sientas que no encajas en ningún lugar, ${n}, recuerda que fuiste hecho para uno más grande que este mundo.`, bg: "#edf5e8", fg: "#2A5510", versiculo: "«Mas nuestra ciudadanía está en los cielos, de donde también esperamos al Salvador.»", ref: "Filipenses 3:20" },
+  { texto: (n) => `${n}, el dolor que cargas hoy no es en vano. Dios tiene la capacidad de usar cada herida para sanar a alguien más mañana.`, bg: "#fdf0f5", fg: "#7A2040", versiculo: "«Quien nos consuela en todas nuestras tribulaciones, para que también nosotros podamos consolar a los que están en cualquier tribulación.»", ref: "2 Corintios 1:4" },
+  { texto: (n) => `${n}, la alabanza tiene poder para cambiar el ambiente. Canta hoy aunque no tengas ganas; el cántico abre el cielo.`, bg: "#e8f1fc", fg: "#0A3D70", versiculo: "«Cantad al Señor un cántico nuevo; cantad al Señor toda la tierra.»", ref: "Salmo 96:1" },
+  { texto: (n) => `No te juzgues tan duramente, ${n}. Si Dios ya no te condena, ¿por qué habrías de condenarte tú mismo?`, bg: "#eaf3f0", fg: "#0A5040", versiculo: "«Si nuestro corazón nos reprende, mayor que nuestro corazón es Dios.»", ref: "1 Juan 3:20" },
+  { texto: (n) => `${n}, a veces la respuesta de Dios no llega como esperamos, pero siempre llega a tiempo. Su reloj nunca se retrasa.`, bg: "#fdf4ea", fg: "#6A3A08", versiculo: "«Espera en el Señor, y guarda su camino, y él te exaltará.»", ref: "Salmo 37:34" },
+  { texto: (n) => `${n}, el perdón que recibes de Dios no es una segunda oportunidad; es la primera de un número infinito. Él no se agota contigo.`, bg: "#fdf0f0", fg: "#721530", versiculo: "«Porque tú, Señor, eres bueno y perdonador, y grande en misericordia para con todos los que te invocan.»", ref: "Salmo 86:5" },
+  { texto: (n) => `${n}, no tienes que entender todo para confiar. La fe es precisamente creer en lo que aún no ves ni comprendes del todo.`, bg: "#f0eefe", fg: "#3A2880", versiculo: "«Es pues, la fe la certeza de lo que se espera, la convicción de lo que no se ve.»", ref: "Hebreos 11:1" },
+  { texto: (n) => `Las palabras que dices sobre ti mismo importan, ${n}. Háblate como Dios te habla: con amor, con gracia, con esperanza.`, bg: "#edf5e8", fg: "#245010", versiculo: "«La muerte y la vida están en poder de la lengua, y el que la ama comerá de sus frutos.»", ref: "Proverbios 18:21" },
+  { texto: (n) => `${n}, Dios no solo te llama, también te equipa. Todo lo que necesitas para cumplir su propósito ya está dentro de ti.`, bg: "#e8f1fc", fg: "#083870", versiculo: "«Y el Dios de paz que resucitó de los muertos a nuestro Señor... os haga aptos en toda obra buena.»", ref: "Hebreos 13:20-21" },
+  { texto: (n) => `${n}, el sufrimiento de hoy no es una contradicción a la bondad de Dios. Es el cincel con el que Él esculpe tu carácter.`, bg: "#fdf0f5", fg: "#6A2038", versiculo: "«Sabemos que el sufrimiento produce perseverancia; la perseverancia, carácter; y el carácter, esperanza.»", ref: "Romanos 5:3-4" },
+  { texto: (n) => `${n}, eres portador de buenas noticias. Tu vida es un mensaje vivo de lo que Dios puede hacer con alguien que dice que sí.`, bg: "#fdf4ea", fg: "#703808", versiculo: "«¡Cuán hermosos son los pies de los que anuncian el evangelio de la paz!»", ref: "Romanos 10:15" },
+  { texto: (n) => `Cuando nadie más te vea, ${n}, Dios te está mirando. Y lo que ve le llena de amor y de orgullo por ti.`, bg: "#eaf3f0", fg: "#0A5840", versiculo: "«Pero cuando tú ores, entra en tu cuarto, y cuando hayas cerrado la puerta, ora a tu Padre que está en secreto; y tu Padre que ve en lo secreto te recompensará.»", ref: "Mateo 6:6" },
+  { texto: (n) => `${n}, no le temas a empezar de cero. Cada amanecer es una página en blanco que Dios pone en tus manos para escribir algo nuevo.`, bg: "#f0eefe", fg: "#3C2888", versiculo: "«He aquí que yo hago algo nuevo; ya está brotando, ¿no lo veis?»", ref: "Isaías 43:19" },
+  { texto: (n) => `${n}, la humildad no es pensar poco de ti. Es no pensar demasiado en ti. Pon los ojos en Dios y todo se ordena.`, bg: "#fdf0f0", fg: "#6A2020", versiculo: "«Humillaos, pues, bajo la poderosa mano de Dios, para que él os exalte cuando fuere tiempo.»", ref: "1 Pedro 5:6" },
+  { texto: (n) => `${n}, en cada estación de tu vida hay algo que aprender. No malgastes el invierno deseando que sea verano. Dios obra en ambos.`, bg: "#edf5e8", fg: "#204E10", versiculo: "«He aprendido a contentarme, cualquiera que sea mi situación.»", ref: "Filipenses 4:11" },
+  { texto: (n) => `La generosidad que ejerces, ${n}, no empobrece tu vida. La multiplica. Dios honra a quienes dan con corazón alegre.`, bg: "#e8f1fc", fg: "#083A68", versiculo: "«Cada uno dé como propuso en su corazón: no con tristeza, ni por necesidad, porque Dios ama al dador alegre.»", ref: "2 Corintios 9:7" },
+  { texto: (n) => `${n}, cuando sientas que no tienes palabras para orar, el Espíritu ora por ti con gemidos que no pueden expresarse.`, bg: "#fdf4ea", fg: "#6A3A06", versiculo: "«El Espíritu mismo intercede por nosotros con gemidos indecibles.»", ref: "Romanos 8:26" },
+  { texto: (n) => `${n}, tu historia no ha terminado. Las mejores páginas de un libro no están al principio. Dios aún tiene mucho que escribir.`, bg: "#fdf0f5", fg: "#6A1E3A", versiculo: "«El que comenzó en vosotros la buena obra, la perfeccionará hasta el día de Jesucristo.»", ref: "Filipenses 1:6" },
+  { texto: (n) => `${n}, no hay límite en lo que Dios puede hacer a través de alguien que está completamente rendido a Él. Ríndete hoy.`, bg: "#eaf3f0", fg: "#084E38", versiculo: "«Os ruego, pues, hermanos, por las misericordias de Dios, que presentéis vuestros cuerpos en sacrificio vivo.»", ref: "Romanos 12:1" },
+  { texto: (n) => `${n}, quizás hoy no puedas ver el final del camino, pero puedes ver el próximo paso. Eso es todo lo que necesitas por ahora.`, bg: "#f0eefe", fg: "#342280", versiculo: "«Tu palabra es lámpara a mis pies y lumbrera a mi camino.»", ref: "Salmo 119:105" },
+  { texto: (n) => `${n}, la paciencia no es pasividad. Es fe activa que espera con confianza lo que Dios ya prometió. Espera con certeza.`, bg: "#fdf0f0", fg: "#6A1818", versiculo: "«La paciencia del justo es su camino; aguarda en el Señor, y él te exaltará.»", ref: "Salmo 37:7" },
+  { texto: (n) => `${n}, incluso tus sueños rotos pueden resucitar en las manos de Dios. No los entierres; entrégaselos a Él.`, bg: "#edf5e8", fg: "#1E4C10", versiculo: "«Lo que tú siembras no se vivifica si no muere antes.»", ref: "1 Corintios 15:36" },
+  { texto: (n) => `${n}, Dios usa a personas imperfectas para hacer cosas perfectas. No esperes estar listo. Ya lo estás para Él.`, bg: "#e8f1fc", fg: "#083668", versiculo: "«Porque Dios escogió lo necio del mundo para avergonzar a los sabios.»", ref: "1 Corintios 1:27" },
+  { texto: (n) => `${n}, la comparación roba la alegría. Corre tu propia carrera, al ritmo que Dios puso en tus pies.`, bg: "#fdf4ea", fg: "#643606", versiculo: "«Corramos con perseverancia la carrera que tenemos por delante, puestos los ojos en Jesús.»", ref: "Hebreos 12:1-2" },
+  { texto: (n) => `${n}, cuando alguien te lastima, no cargues la ofensa. Entrégala. El resentimiento solo te hace daño a ti.`, bg: "#fdf0f5", fg: "#621A36", versiculo: "«No os venguéis vosotros mismos, amados míos, sino dejad lugar a la ira de Dios.»", ref: "Romanos 12:19" },
+  { texto: (n) => `${n}, Dios es fiel incluso cuando tú no lo eres. Eso no es una excusa para fallar; es una razón para volver.`, bg: "#eaf3f0", fg: "#074A36", versiculo: "«Si fuéremos infieles, él permanece fiel; él no puede negarse a sí mismo.»", ref: "2 Timoteo 2:13" },
+  { texto: (n) => `${n}, el gozo no viene de las circunstancias perfectas. Viene de la presencia de Dios en medio de las imperfectas.`, bg: "#f0eefe", fg: "#302080", versiculo: "«En tu presencia hay plenitud de gozo; delicias a tu diestra para siempre.»", ref: "Salmo 16:11" },
+  { texto: (n) => `${n}, el ayuno y la oración abren puertas que ninguna estrategia humana puede abrir. Prueba el poder de la dependencia de Dios.`, bg: "#fdf0f0", fg: "#681A18", versiculo: "«Este género no sale sino con oración y ayuno.»", ref: "Mateo 17:21" },
+  { texto: (n) => `${n}, no hay situación sin salida cuando Dios está en el cuadro. Él es el Dios de los imposibles y los sin salida.`, bg: "#edf5e8", fg: "#1C4A0E", versiculo: "«Para los hombres esto es imposible; mas para Dios todo es posible.»", ref: "Mateo 19:26" },
+  { texto: (n) => `${n}, Dios no te compara con nadie. Te ve a ti, con tus talentos únicos, y dice: "Con esto, contigo, haré algo grande."`, bg: "#e8f1fc", fg: "#073460", versiculo: "«Porque de él, y por él, y para él son todas las cosas. A él sea la gloria por los siglos.»", ref: "Romanos 11:36" },
+  { texto: (n) => `${n}, ser agradecido en medio de la tormenta no significa fingir que todo está bien. Significa creer que Dios sigue al mando.`, bg: "#fdf4ea", fg: "#603406", versiculo: "«Dad gracias en todo, porque esta es la voluntad de Dios para con vosotros en Cristo Jesús.»", ref: "1 Tesalonicenses 5:18" },
+  { texto: (n) => `${n}, las palabras que Dios dijo sobre ti en la eternidad pesan más que cualquier cosa que alguien haya dicho de ti en el tiempo.`, bg: "#fdf0f5", fg: "#601834", versiculo: "«Antes que te formase en el vientre te conocí.»", ref: "Jeremías 1:5" },
+  { texto: (n) => `${n}, incluso las noches más largas tienen un amanecer. Dios ya lo preparó. Solo hay que seguir esperando la luz.`, bg: "#eaf3f0", fg: "#064834", versiculo: "«Más yo a ti he clamado, oh Jehová, y de mañana mi oración se presentará delante de ti.»", ref: "Salmo 88:13" },
+  { texto: (n) => `${n}, el amor que Dios tiene por ti no fluctúa según tus emociones. Es constante, firme, inamovible. Descansa en esa certeza.`, bg: "#f0eefe", fg: "#2E1E78", versiculo: "«Yo soy el Señor, y no cambio.»", ref: "Malaquías 3:6" },
+  { texto: (n) => `${n}, no temas pedir ayuda. La necesidad no es debilidad; es una oportunidad para que Dios y otros entren a tu vida.`, bg: "#fdf0f0", fg: "#661618", versiculo: "«Llevad los unos las cargas de los otros, y cumplid así la ley de Cristo.»", ref: "Gálatas 6:2" },
+  { texto: (n) => `${n}, la paz que Dios da no espera a que todo esté resuelto. Llega en medio del caos, como una ancla que sostiene el alma.`, bg: "#edf5e8", fg: "#1A480C", versiculo: "«Porque yo sé a quién he creído, y estoy seguro que es poderoso para guardar mi depósito.»", ref: "2 Timoteo 1:12" },
+  { texto: (n) => `${n}, lo que Dios ha prometido, lo cumple. No a medias. No con prisa. Perfectamente y en su tiempo.`, bg: "#e8f1fc", fg: "#073260", versiculo: "«Fiel es el que prometió.»", ref: "Hebreos 10:23" },
+  { texto: (n) => `${n}, cada vez que eliges el amor sobre la amargura, algo cambia en el mundo invisible. Esa elección tiene poder.`, bg: "#fdf4ea", fg: "#5C3206", versiculo: "«Sobre todo, vestíos de amor, que es el vínculo perfecto.»", ref: "Colosenses 3:14" },
+  { texto: (n) => `${n}, Dios no descansa en su amor hacia ti. Cada momento de tu vida, Él está activamente obrando a tu favor.`, bg: "#fdf0f5", fg: "#5C1832", versiculo: "«Mi Padre hasta ahora trabaja, y yo trabajo.»", ref: "Juan 5:17" },
+  { texto: (n) => `${n}, cuando alguien te abandona, recuerda que Dios prometió no dejarte ni desampararte. Esa promesa no tiene excepciones.`, bg: "#eaf3f0", fg: "#064630", versiculo: "«No te desampararé, ni te abandonaré.»", ref: "Hebreos 13:5" },
+  { texto: (n) => `${n}, tu valor no está en lo que produces sino en lo que eres: hijo amado de Dios. Eso nunca cambia.`, bg: "#f0eefe", fg: "#2C1C76", versiculo: "«Mirad cuál amor nos ha dado el Padre, para que seamos llamados hijos de Dios.»", ref: "1 Juan 3:1" },
+  { texto: (n) => `${n}, la alegría que buscas no está en el próximo logro. Está disponible ahora, en la presencia del que te ama sin condiciones.`, bg: "#fdf0f0", fg: "#641418", versiculo: "«Regocijaos en el Señor siempre. Otra vez digo: ¡Regocijaos!»", ref: "Filipenses 4:4" },
+  { texto: (n) => `${n}, incluso cuando no entiendas el porqué de lo que vives, puedes confiar en el quién que lo permite. Dios es bueno.`, bg: "#edf5e8", fg: "#18460C", versiculo: "«Bueno es el Señor con los que en él esperan, con el alma que le busca.»", ref: "Lamentaciones 3:25" },
+  { texto: (n) => `${n}, Dios no solo restaura lo que se rompió. Lo restaura mejor. Sus reparaciones siempre superan el original.`, bg: "#e8f1fc", fg: "#063058", versiculo: "«Yo os restituiré los años que comió la oruga, el saltón y el revoltón.»", ref: "Joel 2:25" },
+  { texto: (n) => `${n}, el tiempo que pasas con Dios no es tiempo perdido. Es la inversión más rentable que puedes hacer con tu vida.`, bg: "#fdf4ea", fg: "#583006", versiculo: "«Buscad primeramente el reino de Dios y su justicia, y todas estas cosas os serán añadidas.»", ref: "Mateo 6:33" },
+  { texto: (n) => `${n}, cuando el camino se nuble, vuelve a lo básico: confiar, orar, esperar. Dios nunca falla en lo fundamental.`, bg: "#fdf0f5", fg: "#5A1830", versiculo: "«El Señor es bueno, fortaleza en el día de la angustia; y conoce a los que en él confían.»", ref: "Nahum 1:7" },
+  { texto: (n) => `${n}, las personas que puso Dios en tu camino no son coincidencias. Cada encuentro tiene un propósito eterno.`, bg: "#eaf3f0", fg: "#06442E", versiculo: "«Hierro con hierro se aguza; y así el hombre aguza el rostro de su amigo.»", ref: "Proverbios 27:17" },
+  { texto: (n) => `${n}, quizás no puedas hacer grandes cosas hoy. Pero puedes hacer pequeñas cosas con gran amor. Eso cambia todo.`, bg: "#f0eefe", fg: "#2A1A74", versiculo: "«El que es fiel en lo muy poco, también en lo más es fiel.»", ref: "Lucas 16:10" },
+  { texto: (n) => `${n}, la oración no cambia a Dios; te cambia a ti. Y al cambiarte a ti, cambia todo lo que te rodea.`, bg: "#fdf0f0", fg: "#621218", versiculo: "«Orad sin cesar.»", ref: "1 Tesalonicenses 5:17" },
+  { texto: (n) => `${n}, lo que Dios comenzó en ti no fue un capricho. Fue una decisión tomada desde la eternidad. Él termina lo que comienza.`, bg: "#edf5e8", fg: "#16440C", versiculo: "«Fiel es el que os llama, el cual también lo hará.»", ref: "1 Tesalonicenses 5:24" },
+  { texto: (n) => `${n}, no tienes que ser perfecto para ser usado. Solo tienes que estar disponible. Dios hace el resto.`, bg: "#e8f1fc", fg: "#062E58", versiculo: "«Aquí estoy, envíame a mí.»", ref: "Isaías 6:8" },
+  { texto: (n) => `${n}, los que esperan en Dios no son ingenuos. Son los más sabios, porque conocen al que tiene el control de todo.`, bg: "#fdf4ea", fg: "#562E06", versiculo: "«El temor del Señor es el principio de la sabiduría.»", ref: "Proverbios 9:10" },
+  { texto: (n) => `${n}, hay bendiciones que solo se reciben en el desierto. No todo lo que parece pérdida es pérdida. A veces es preparación.`, bg: "#fdf0f5", fg: "#58162E", versiculo: "«Y te acordarás de todo el camino por donde el Señor tu Dios te ha traído estos cuarenta años en el desierto.»", ref: "Deuteronomio 8:2" },
+  { texto: (n) => `${n}, Dios conoce tu nombre. No eres un número, no eres una estadística. Eres su hijo, y Él nunca te pierde de vista.`, bg: "#eaf3f0", fg: "#06422C", versiculo: "«¿Se olvidará la mujer de lo que dio a luz? [...] Antes que esos se olvidaran, yo me olvidaré de ti.»", ref: "Isaías 49:15" },
+  { texto: (n) => `${n}, incluso en la enfermedad, en la pérdida, en la oscuridad: Dios sigue siendo Dios. Su trono no se sacude.`, bg: "#f0eefe", fg: "#281872", versiculo: "«El Señor reina; se vistió de magnificencia.»", ref: "Salmo 93:1" },
+  { texto: (n) => `${n}, la victoria que buscas no siempre llega como imaginabas, pero siempre llega. Dios no libra batallas para perderlas.`, bg: "#fdf0f0", fg: "#601018", versiculo: "«Mas a Dios gracias, el cual nos lleva siempre en triunfo en Cristo Jesús.»", ref: "2 Corintios 2:14" },
+  { texto: (n) => `${n}, la semilla que siembras en lágrimas, la cosecharás en alegría. El proceso duele, pero el fruto vale todo.`, bg: "#edf5e8", fg: "#14420C", versiculo: "«Los que siembran con lágrimas, con regocijo segarán.»", ref: "Salmo 126:5" },
+  { texto: (n) => `${n}, Dios camina con los que tropiezan. Su gracia no es para los que llegaron a la meta, sino para los que siguen corriendo.`, bg: "#e8f1fc", fg: "#062C50", versiculo: "«El Señor afirma los pasos del hombre bueno y se deleita en su camino; podrá tropezar, pero no caerá.»", ref: "Salmo 37:23-24" },
+  { texto: (n) => `${n}, el mundo dice que seas fuerte y no muestres debilidad. Dios dice que en tu debilidad, Él es fuerte. Son filosofías opuestas.`, bg: "#fdf4ea", fg: "#542C06", versiculo: "«Cuando soy débil, entonces soy fuerte.»", ref: "2 Corintios 12:10" },
+  { texto: (n) => `${n}, lo que Dios da no tiene garantía de devolución porque no necesita ser devuelto. Su gracia no caduca.`, bg: "#fdf0f5", fg: "#561430", versiculo: "«La gracia del Señor es eterna para los que le temen.»", ref: "Salmo 103:17" },
+  { texto: (n) => `${n}, si hoy sientes el corazón pesado, Dios lo sabe. No hay necesidad de fingir. Él prefiere tu honestidad a tu performance.`, bg: "#eaf3f0", fg: "#06402A", versiculo: "«El Señor está cerca de los quebrantados de corazón.»", ref: "Salmo 34:18" },
+  { texto: (n) => `${n}, la perseverancia no se trata de no cansarse. Se trata de levantarse cada vez que te cansas. Levántate hoy.`, bg: "#f0eefe", fg: "#261670", versiculo: "«No nos cansemos, pues, de hacer bien; porque a su tiempo segaremos, si no desmayamos.»", ref: "Gálatas 6:9" },
+  { texto: (n) => `${n}, Dios tiene un ejército invisible que trabaja a tu favor en todo momento. No estás desprotegido ni un solo segundo.`, bg: "#fdf0f0", fg: "#5E0E18", versiculo: "«El ángel del Señor acampa alrededor de los que le temen, y los defiende.»", ref: "Salmo 34:7" },
+  { texto: (n) => `${n}, la esperanza que tiene su fundamento en Cristo nunca decepciona. Es diferente al optimismo; es certeza con raíces eternas.`, bg: "#edf5e8", fg: "#12400C", versiculo: "«La esperanza no avergüenza; porque el amor de Dios ha sido derramado en nuestros corazones.»", ref: "Romanos 5:5" },
+  { texto: (n) => `${n}, Dios no necesita que seas elocuente para usarte. Solo necesita que seas obediente.`, bg: "#e8f1fc", fg: "#062A50", versiculo: "«Porque no sois vosotros los que hablaréis, sino el Espíritu de vuestro Padre que habla en vosotros.»", ref: "Mateo 10:20" },
+  { texto: (n) => `${n}, lo que entregas a Dios nunca se pierde. Se transforma. Siempre recibe más de lo que entregó quien confía en Él.`, bg: "#fdf4ea", fg: "#502A06", versiculo: "«Dad, y se os dará; medida buena, apretada, remecida y rebosando darán en vuestro regazo.»", ref: "Lucas 6:38" },
+  { texto: (n) => `${n}, incluso cuando no puedas orar con palabras, el silencio también es un lenguaje que Dios entiende perfectamente.`, bg: "#fdf0f5", fg: "#54122C", versiculo: "«Estad quietos delante de Jehová, y esperadle.»", ref: "Salmo 37:7" },
+  { texto: (n) => `${n}, Dios convierte el luto en danza. Lo que hoy te hace llorar, Él lo puede transformar en tu mayor motivo de celebración.`, bg: "#eaf3f0", fg: "#063E28", versiculo: "«Has cambiado mi lamento en baile; desataste mi cilicio, y me ceñiste de alegría.»", ref: "Salmo 30:11" },
+  { texto: (n) => `${n}, la fe sin obras está muerta, pero la obra sin fe también se agota. Haz lo que puedas y deja el resto a Dios.`, bg: "#f0eefe", fg: "#241470", versiculo: "«La fe sin obras está muerta.»", ref: "Santiago 2:26" },
+  { texto: (n) => `${n}, no importa qué tan lejos hayas llegado de Dios; el camino de regreso siempre es más corto de lo que piensas.`, bg: "#fdf0f0", fg: "#5C0C18", versiculo: "«Arrepentíos, y convertíos a Dios, para que sean borrados vuestros pecados.»", ref: "Hechos 3:19" },
+  { texto: (n) => `${n}, eres la respuesta a la oración de alguien. Tu presencia en la vida de otros no es casual; es providencial.`, bg: "#edf5e8", fg: "#103E0C", versiculo: "«Vosotros sois la carta de Cristo, escrita no con tinta, sino con el Espíritu del Dios vivo.»", ref: "2 Corintios 3:3" },
+  { texto: (n) => `${n}, cuando te sientas invisible, recuerda que los ojos del Señor recorren toda la tierra buscando a quién fortalecer. Hoy te encontró.`, bg: "#e8f1fc", fg: "#062848", versiculo: "«Porque los ojos del Señor contemplan toda la tierra, para mostrar su poder en favor de los que tienen corazón perfecto para con él.»", ref: "2 Crónicas 16:9" },
+  { texto: (n) => `${n}, la santidad no es una lista de reglas. Es una relación con alguien tan hermoso que te transforma al mirarlo.`, bg: "#fdf4ea", fg: "#4E2806", versiculo: "«Nosotros todos, mirando a cara descubierta como en un espejo la gloria del Señor, somos transformados de gloria en gloria.»", ref: "2 Corintios 3:18" },
+  { texto: (n) => `${n}, no hay nadie más seguro para confiar tu corazón que Aquel que lo creó. Él lo conoce mejor que tú mismo.`, bg: "#fdf0f5", fg: "#52102A", versiculo: "«Encomienda al Señor tu camino, y confía en él; y él hará.»", ref: "Salmo 37:5" },
+  { texto: (n) => `${n}, lo que el enemigo diseñó para destruirte, Dios tiene el poder de usarlo para construirte. Eso es soberanía.`, bg: "#eaf3f0", fg: "#063C26", versiculo: "«Vosotros pensasteis hacerme mal, pero Dios lo encaminó a bien.»", ref: "Génesis 50:20" },
+  { texto: (n) => `${n}, si hoy alguien te dijo que no vales, recuerda que la última palabra sobre tu vida no la tiene ninguna persona.`, bg: "#f0eefe", fg: "#221268", versiculo: "«¿Quién acusará a los escogidos de Dios? Dios es el que justifica.»", ref: "Romanos 8:33" },
+  { texto: (n) => `${n}, la corona que Dios tiene para ti no depende de cuántas batallas ganaste, sino de cuántas seguiste peleando a pesar de todo.`, bg: "#fdf0f0", fg: "#5A0A18", versiculo: "«Sé fiel hasta la muerte, y yo te daré la corona de la vida.»", ref: "Apocalipsis 2:10" },
+  { texto: (n) => `${n}, Dios transforma el desierto en manantial. Lo que hoy parece tierra seca, mañana puede ser el lugar donde brota la vida.`, bg: "#edf5e8", fg: "#0E3C0A", versiculo: "«He aquí, yo hago ríos en el desierto, y ríos en la soledad.»", ref: "Isaías 43:19-20" },
+  { texto: (n) => `${n}, la adoración es el arma más poderosa que tienes. Cuando alabas en medio de la tormenta, el cielo responde.`, bg: "#e8f1fc", fg: "#062648", versiculo: "«A medianoche, Pablo y Silas oraban y cantaban himnos a Dios; y los presos los oían... las puertas se abrieron.»", ref: "Hechos 16:25-26" },
+  { texto: (n) => `${n}, no permitas que nadie apague la llama que Dios encendió en ti. Esa llama fue puesta con propósito.`, bg: "#fdf4ea", fg: "#4C2606", versiculo: "«No apaguéis el Espíritu.»", ref: "1 Tesalonicenses 5:19" },
+  { texto: (n) => `${n}, el amor de Dios no tiene condiciones de letra pequeña. Es total, eterno y absolutamente gratuito para ti.`, bg: "#fdf0f5", fg: "#500E28", versiculo: "«¿Qué nos separará del amor de Cristo? ¿Tribulación, o angustia, o persecución...?»", ref: "Romanos 8:35" },
+  { texto: (n) => `${n}, cuando todo cambia, Dios permanece. Esa permanencia es tu ancla en medio de los mares más agitados.`, bg: "#eaf3f0", fg: "#063A24", versiculo: "«Jesucristo es el mismo ayer, y hoy, y por los siglos.»", ref: "Hebreos 13:8" },
+  { texto: (n) => `${n}, hay semillas que sembraste hace tiempo y aún no ves crecer. No las arranques. Dios cuida lo que no puedes ver.`, bg: "#f0eefe", fg: "#201068", versiculo: "«El que planta y el que riega son una misma cosa; aunque cada uno recibirá su recompensa conforme a su labor.»", ref: "1 Corintios 3:8" },
+  { texto: (n) => `${n}, en cada momento de gratitud, se rompe algo del espíritu de queja. Elige hoy dar gracias y observa cómo cambia tu perspectiva.`, bg: "#fdf0f0", fg: "#580818", versiculo: "«Dad gracias al Señor, porque él es bueno; porque para siempre es su misericordia.»", ref: "Salmo 107:1" },
+  { texto: (n) => `${n}, Dios no se sorprende por lo que estás viviendo. Él lo vio antes y ya preparó la salida. Confía en el que ya fue al final.`, bg: "#edf5e8", fg: "#0C3A08", versiculo: "«Conoce el Señor los días de los perfectos.»", ref: "Salmo 37:18" },
+  { texto: (n) => `${n}, a veces lo que parece un desvío en tu camino es la ruta que Dios eligió para llevarte más rápido a su propósito.`, bg: "#e8f1fc", fg: "#062440", versiculo: "«El corazón del hombre piensa su camino; mas Jehová endereza sus pasos.»", ref: "Proverbios 16:9" },
+  { texto: (n) => `${n}, la identidad que el mundo te asigna es temporal. La que Dios te dio es permanente: eres su hijo amado.`, bg: "#fdf4ea", fg: "#4A2406", versiculo: "«A todos los que le recibieron, les dio potestad de ser hechos hijos de Dios.»", ref: "Juan 1:12" },
+  { texto: (n) => `${n}, no tienes que saber el destino completo para dar el siguiente paso. Dios ilumina suficiente para cada momento.`, bg: "#fdf0f5", fg: "#4E0C28", versiculo: "«Tu palabra es lámpara a mis pies, y lumbrera a mi camino.»", ref: "Salmo 119:105" },
+  { texto: (n) => `${n}, las circunstancias hablan, pero Dios tiene la última palabra. Y su palabra no vuelve vacía.`, bg: "#eaf3f0", fg: "#063820", versiculo: "«Así será mi palabra que sale de mi boca: no volverá a mí vacía, sino que hará lo que yo quiero.»", ref: "Isaías 55:11" },
+  { texto: (n) => `${n}, cada vez que eliges confiar en lugar de temer, tu fe crece. Y una fe que crece puede con más de lo que imaginas.`, bg: "#f0eefe", fg: "#1E0E68", versiculo: "«La fe es la victoria que ha vencido al mundo.»", ref: "1 Juan 5:4" },
+  { texto: (n) => `${n}, tu dolor puede convertirse en tu mayor ministerio. Lo que te rompió puede ser lo que sane a alguien más.`, bg: "#fdf0f0", fg: "#560618", versiculo: "«Él nos consuela en todas nuestras tribulaciones, para que también nosotros podamos consolar a los que están en cualquier tribulación.»", ref: "2 Corintios 1:4" },
+  { texto: (n) => `${n}, el Padre te está esperando con los brazos abiertos, sin importar cuánto tiempo estuviste lejos o cuánto erraste.`, bg: "#edf5e8", fg: "#0A3808", versiculo: "«Estando aún lejos, lo vio su padre, y fue movido a misericordia, y corrió, y se echó sobre su cuello, y le besó.»", ref: "Lucas 15:20" },
+  { texto: (n) => `${n}, Dios tiene reservado para ti lo que el ojo no vio ni el oído oyó. Lo mejor que imaginas es solo una fracción de lo que Él preparó.`, bg: "#e8f1fc", fg: "#062240", versiculo: "«Cosas que ojo no vio, ni oído oyó, ni han subido en corazón de hombre, son las que Dios ha preparado para los que le aman.»", ref: "1 Corintios 2:9" },
+  { texto: (n) => `${n}, no temas ser diferente. Lo que el mundo llama rareza, Dios a menudo lo llama llamado.`, bg: "#fdf4ea", fg: "#482206", versiculo: "«No os conforméis a este siglo, sino transformaos por medio de la renovación de vuestro entendimiento.»", ref: "Romanos 12:2" },
+  { texto: (n) => `${n}, cuando Dios dice que sí, nada puede decir que no. Y cuando Él dice que no, es porque protege algo que aún no ves.`, bg: "#fdf0f5", fg: "#4C0A26", versiculo: "«Todas las promesas de Dios son en él Sí, y en él Amén.»", ref: "2 Corintios 1:20" },
+  { texto: (n) => `${n}, la alabanza no es solo para los tiempos buenos. Es especialmente poderosa en los tiempos difíciles. Alaba hoy.`, bg: "#eaf3f0", fg: "#06361E", versiculo: "«Bendeciré al Señor en todo tiempo; su alabanza estará de continuo en mi boca.»", ref: "Salmo 34:1" },
+  { texto: (n) => `${n}, a Dios no le incomoda tu honestidad. Cuando le dices "no puedo más", Él dice: "Perfecto, ahora puedo yo."`, bg: "#f0eefe", fg: "#1C0C68", versiculo: "«Derramad delante de él vuestro corazón.»", ref: "Salmo 62:8" },
+  { texto: (n) => `${n}, hay un plan que comenzó antes de tu nacimiento y que ningún error tuyo puede cancelar. Dios es más grande que tus fallos.`, bg: "#fdf0f0", fg: "#540418", versiculo: "«Porque irrevocables son los dones y el llamamiento de Dios.»", ref: "Romanos 11:29" },
+  { texto: (n) => `${n}, el mundo cambia todos los días. Pero hay algo que no cambia: el amor de Dios por ti. Eso es tu ancla.`, bg: "#edf5e8", fg: "#083608", versiculo: "«Yo soy el Señor, y no cambio.»", ref: "Malaquías 3:6" },
+  { texto: (n) => `${n}, no te afanes por lo que no depende de ti. Enfócate en lo que sí puedes hacer y confía el resto al Soberano.`, bg: "#e8f1fc", fg: "#062038", versiculo: "«Por nada estéis afanosos, sino sean conocidas vuestras peticiones delante de Dios.»", ref: "Filipenses 4:6" },
+  { texto: (n) => `${n}, incluso tu nombre pronunciado por Dios suena diferente. Suena a amor, a propósito, a eternidad.`, bg: "#fdf4ea", fg: "#462006", versiculo: "«Te he llamado por tu nombre; mío eres tú.»", ref: "Isaías 43:1" },
+  { texto: (n) => `${n}, si hoy sientes que das un paso atrás, puede que Dios solo esté tomando impulso para lanzarte hacia adelante.`, bg: "#fdf0f5", fg: "#4A0824", versiculo: "«El principio de la sabiduría es el temor del Señor.»", ref: "Salmo 111:10" },
+  { texto: (n) => `${n}, hay un gozo que no depende del clima emocional del día. Es el gozo que viene de saber a quién perteneces.`, bg: "#eaf3f0", fg: "#06341C", versiculo: "«Me mostrarás la senda de la vida; en tu presencia hay plenitud de gozo.»", ref: "Salmo 16:11" },
+  { texto: (n) => `${n}, ser llamado hijo de Dios es la identidad más poderosa que existe. Todo lo demás es secundario frente a eso.`, bg: "#f0eefe", fg: "#1A0A60", versiculo: "«Mirad cuál amor nos ha dado el Padre, para que seamos llamados hijos de Dios.»", ref: "1 Juan 3:1" },
+  { texto: (n) => `${n}, la gracia de Dios no es barata, pero sí es gratuita. Y llega precisamente donde más la necesitas.`, bg: "#fdf0f0", fg: "#520218", versiculo: "«Pero donde el pecado abundó, sobreabundó la gracia.»", ref: "Romanos 5:20" },
+  { texto: (n) => `${n}, cuando Dios te pide que esperes, no es una señal de olvido. Es una señal de preparación. Algo grande se está cocinando.`, bg: "#edf5e8", fg: "#063408", versiculo: "«Aguarda al Señor; esfuérzate, y aliéntese tu corazón; sí, espera al Señor.»", ref: "Salmo 27:14" },
+  { texto: (n) => `${n}, no tienes que cargar el peso del mundo. Solo el de hoy. Y para ese, ya tienes gracia suficiente.`, bg: "#e8f1fc", fg: "#061E38", versiculo: "«Basta a cada día su propio afán.»", ref: "Mateo 6:34" },
+  { texto: (n) => `${n}, la promesa que Dios te dio no tiene fecha de vencimiento. Si no llegó aún, es porque el tiempo perfecto aún no ha llegado.`, bg: "#fdf4ea", fg: "#442006", versiculo: "«Porque la visión es aún para tiempo señalado; mas se apresura hacia el fin, y no mentirá; aunque tardare, espéralo.»", ref: "Habacuc 2:3" },
+  { texto: (n) => `${n}, en este mundo hay tribulaciones, pero Dios te dijo: "Ten ánimo; yo he vencido al mundo." Esa victoria es también tuya.`, bg: "#fdf0f5", fg: "#480624", versiculo: "«En el mundo tendréis aflicción; pero confiad, yo he vencido al mundo.»", ref: "Juan 16:33" },
+];
+
+function hash(s, seed) {
+  let h = seed || 0;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x9e3779b9) >>> 0;
+  return h;
+}
+
+function getPoolPorNombre(nombre) {
+  const n = nombre.toLowerCase().trim();
+  const seeds = [0x12345678,0xabcdef01,0xdeadbeef,0xcafebabe,0x87654321,0x11223344,0xfeedface,0x13579bdf,0x2468ace0,0xf0f0f0f0,0x01010101,0xababab,0x55aa55aa];
+  const indices = seeds.map(s => hash(n, s) % mensajes.length);
+  return [...new Set(indices)];
+}
+
+let pool = [];
+let poolPos = 0;
+let nombreActual = "";
+
+function generar() {
+  const val = document.getElementById('nombreInput').value.trim();
+  if (!val) { document.getElementById('hint').textContent = "Por favor escribe tu nombre primero."; return; }
+  document.getElementById('hint').textContent = "";
+  if (val.toLowerCase() !== nombreActual.toLowerCase()) {
+    nombreActual = val;
+    pool = getPoolPorNombre(val);
+    poolPos = 0;
+  } else {
+    poolPos = (poolPos + 1) % pool.length;
+  }
+  mostrar(val, pool[poolPos]);
+}
+
+function mostrar(nombre, idx) {
+  const m = mensajes[idx];
+  const iniciales = nombre.split(" ").map(p => p[0]).join("").toUpperCase().slice(0,2);
+  const av = document.getElementById('avatarEl');
+  av.textContent = iniciales;
+  av.style.background = m.bg;
+  av.style.color = m.fg;
+  document.getElementById('nombreDisplay').textContent = nombre.toUpperCase();
+  document.getElementById('mensajeEl').textContent = m.texto(nombre);
+  document.getElementById('versiculoTexto').textContent = m.versiculo;
+  document.getElementById('versiculoRef').textContent = m.ref;
+  const res = document.getElementById('resultado');
+  res.style.display = 'block';
+  res.style.animation = 'none';
+  void res.offsetWidth;
+  res.style.animation = 'appearCard 0.8s cubic-bezier(0.22,1,0.36,1) both';
+}
+
+document.getElementById('nombreInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generar();
+});
+</script>
+</body>
+</html>
